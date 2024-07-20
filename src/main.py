@@ -47,13 +47,15 @@ app = web.Application(
   logger = CustomWebLogger(LOG),
   middlewares=[
     pg_pool_middleware
-  ]
+  ],
+  client_max_size=(1024**2)*32 # 32MB
 )
 api_app = web.Application(
   logger = CustomWebLogger(LOG),
   middlewares=[
     pg_pool_middleware
-  ]
+  ],
+  client_max_size=(1024**2)*32 # 32MB
 )
   
 
