@@ -4,6 +4,7 @@ import asyncio
 import random
 import string
 import time
+import tomllib
 import numpy
 from typing import TYPE_CHECKING
 
@@ -14,8 +15,11 @@ from faster_whisper import WhisperModel
 if TYPE_CHECKING:
   from faster_whisper.transcribe import Segment, TranscriptionInfo
 
-MODEL_SIZE = "small"
-DEVICE = "cpu"
+with open("config.toml") as f:
+  config = tomllib.loads(f.read())
+
+MODEL_SIZE = config["model"]["model"]
+DEVICE = config["model"]["device"]
 
 model = WhisperModel(
   MODEL_SIZE,

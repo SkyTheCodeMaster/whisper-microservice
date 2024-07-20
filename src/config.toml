@@ -1,0 +1,28 @@
+devmode = false
+
+[model]
+  model = "large-v3"
+  device = "cuda"
+
+[postgresql]
+  enabled = false
+  url = "postgresql://user@ip:port/db_name"
+  password = "secure_password"
+
+[log]
+  file = ""
+
+[srv]
+  host = "0.0.0.0"
+  port = 9090
+  # IPs exempt from ratelimiting.
+  ratelimit_exempt = [
+    "192.168.0.0/16",
+  ]
+  trusted_proxies = [
+    "127.0.0.1"
+  ]
+  api_version = "1.0.0"
+
+[pages]
+  frontend_version = "1.0.0"
