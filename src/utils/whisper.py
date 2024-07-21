@@ -31,16 +31,18 @@ model_lock = asyncio.Lock()
 class TranscriptionResult:
   segments: list[Segment]
   info: TranscriptionInfo
-  full_text: str
   language: str
   language_prob: float
 
   def __init__(self, segments: list[Segment], info: TranscriptionInfo) -> None:
     self.segments = segments
     self.info = info
-    self.full_text = " ".join(segment.text for segment in segments)
     self.language = info.language
     self.language_prob = info.language_probability
+
+  @property
+  def full_text(self) -> str:
+    return " ".join(segment.text.strip() for segment in self.segments)
 
 
 def _transcribe_file(file_path: str) -> TranscriptionResult:
