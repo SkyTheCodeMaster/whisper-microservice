@@ -75,13 +75,16 @@ async def post_whisper_transcribe_file(request: Request) -> Response:
       segments = []
       for segment in result.segments:
         words = []
-        for word in segment.words:
-          words.append({
-            "start": word.start,
-            "end": word.end,
-            "word": word.word,
-            "probability": word.probability
-          })
+        try:
+          for word in segment.words:
+            words.append({
+              "start": word.start,
+              "end": word.end,
+              "word": word.word,
+              "probability": word.probability
+            })
+        except Exception:
+          pass
         
         segments.append({
           "start": segment.start,
@@ -135,13 +138,16 @@ async def post_whisper_transcribe_raw(request: Request) -> Response:
       segments = []
       for segment in result.segments:
         words = []
-        for word in segment.words:
-          words.append({
-            "start": word.start,
-            "end": word.end,
-            "word": word.word,
-            "probability": word.probability
-          })
+        try:
+          for word in segment.words:
+            words.append({
+              "start": word.start,
+              "end": word.end,
+              "word": word.word,
+              "probability": word.probability
+            })
+        except Exception:
+          pass
         
         segments.append({
           "start": segment.start,
