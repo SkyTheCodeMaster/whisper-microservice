@@ -89,7 +89,7 @@ async def post_whisper_transcribe_file(request: Request) -> Response:
         segments.append({
           "start": segment.start,
           "end": segment.end,
-          "text": segment.text,
+          "text": segment.text.strip(),
           "words": words,
         })
 
