@@ -65,10 +65,29 @@ async def post_whisper_transcribe_file(request: Request) -> Response:
 
   data = await request.read()
 
-  detailed = request.query.get("detailed", "false").lower() == "true"
+  query = request.query
+
+  detailed = query.get("detailed", "false").lower() == "true"
+  vad = query.get("vad", "false").lower() == "true"
+  vad_options = None
+  try:
+    threshold = float(query.get("vad_threshold", 0.5))
+    min_speech_ms = float(query.get("vad_min_speech", 250))
+    max_speech_s = float(query.get("vad_max_speech", float("inf")))
+    min_silence_ms = float(query.get("vad_min_silence", 2000))
+    speech_pad = float(query.get("vad_speech_pad", 400))
+    vad_options = {
+      "threshold": threshold,
+      "min_speech_duration_ms": min_speech_ms,
+      "max_speech_duration_s": max_speech_s,
+      "min_silence_duration_ms": min_silence_ms,
+      "speech_pad_ms": speech_pad
+    }
+  except ValueError:
+    return Response(status=400,text="failed converting vad options")
 
   try:
-    result = await transcribe_file(data)
+    result = await transcribe_file(data, use_vad=vad, vad_options=vad_options)
     if not detailed:
       return Response(text=result.full_text)
     else:
@@ -128,10 +147,29 @@ async def post_whisper_transcribe_raw(request: Request) -> Response:
 
   data = await request.read()
 
-  detailed = request.query.get("detailed", "false").lower() == "true"
+  query = request.query
+
+  detailed = query.get("detailed", "false").lower() == "true"
+  vad = query.get("vad", "false").lower() == "true"
+  vad_options = None
+  try:
+    threshold = float(query.get("vad_threshold", 0.5))
+    min_speech_ms = float(query.get("vad_min_speech", 250))
+    max_speech_s = float(query.get("vad_max_speech", float("inf")))
+    min_silence_ms = float(query.get("vad_min_silence", 2000))
+    speech_pad = float(query.get("vad_speech_pad", 400))
+    vad_options = {
+      "threshold": threshold,
+      "min_speech_duration_ms": min_speech_ms,
+      "max_speech_duration_s": max_speech_s,
+      "min_silence_duration_ms": min_silence_ms,
+      "speech_pad_ms": speech_pad
+    }
+  except ValueError:
+    return Response(status=400,text="failed converting vad options")
 
   try:
-    result = await transcribe_bytes(data)
+    result = await transcribe_bytes(data, use_vad=vad, vad_options=vad_options)
     if not detailed:
       return Response(text=result.full_text)
     else:
