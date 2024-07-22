@@ -14,7 +14,7 @@ from utils.authenticate import authenticate
 from utils.logger import get_origin_ip
 
 if TYPE_CHECKING:
-  from ipaddress import IPv4Address
+  from ipaddress import IPv4Address, IPv6Address, IPv4Network, IPv6Network
   from typing import Awaitable, Callable
 
   from utils.extra_request import Request
@@ -32,7 +32,7 @@ class Limiter:
   EXPR: re.Pattern
   use_auth: bool
   use_auth_cache: bool
-  exempt_ips: list[IPv4Address | IPv4Address]
+  exempt_ips: list[IPv4Address | IPv4Network | IPv6Address | IPv6Network]
 
   def __init__(
     self,

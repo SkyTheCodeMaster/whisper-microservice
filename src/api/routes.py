@@ -43,7 +43,7 @@ async def get_lp_get(request: Request) -> Response:
 
 
 @routes.post("/whisper/transcribe/file/")
-@limiter.limit("1/10s")
+@limiter.limit("6/m")
 async def post_whisper_transcribe_file(request: Request) -> Response:
   auth = await authenticate(request, cs=request.session)
 
@@ -125,7 +125,7 @@ async def post_whisper_transcribe_file(request: Request) -> Response:
     return Response(status=500)
 
 @routes.post("/whisper/transcribe/raw/")
-@limiter.limit("1/10s")
+@limiter.limit("6/m")
 async def post_whisper_transcribe_raw(request: Request) -> Response:
   auth = await authenticate(request, cs=request.session)
 
