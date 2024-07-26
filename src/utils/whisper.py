@@ -20,10 +20,12 @@ with open("config.toml") as f:
 
 MODEL_SIZE = config["model"]["model"]
 DEVICE = config["model"]["device"]
+DEVICE_INDEX = config["model"]["device_idx"]
 
 model = WhisperModel(
   MODEL_SIZE,
   device=DEVICE,
+  device_index=DEVICE_INDEX
 )
 
 model_lock = asyncio.Lock()

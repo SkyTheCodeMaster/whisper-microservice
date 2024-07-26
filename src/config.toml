@@ -3,6 +3,7 @@ devmode = false
 [model]
   model = "large-v3"
   device = "cuda"
+  device_idx = 1
 
 [postgresql]
   enabled = false
