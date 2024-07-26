@@ -14,7 +14,7 @@ from utils.authenticate import authenticate
 from utils.logger import get_origin_ip
 
 if TYPE_CHECKING:
-  from ipaddress import IPv4Address, IPv6Address, IPv4Network, IPv6Network
+  from ipaddress import IPv4Address
   from typing import Awaitable, Callable
 
   from utils.extra_request import Request
@@ -32,7 +32,7 @@ class Limiter:
   EXPR: re.Pattern
   use_auth: bool
   use_auth_cache: bool
-  exempt_ips: list[IPv4Address | IPv4Network | IPv6Address | IPv6Network]
+  exempt_ips: list[IPv4Address | IPv4Address]
 
   def __init__(
     self,
@@ -172,8 +172,13 @@ class Limiter:
     force_auth: bool = False,
     request: Request,
   ) -> Response | None:
+    ip = get_origin_ip(request)
+    if self.is_exempt(ip):
+      return None
+      
     if self.use_auth and auth_limit is None:
       raise Exception("must pass auth limit when use_auth is True!")
+
     if self.use_auth:
       try:
         # Authenticate and use username as ident
@@ -190,11 +195,7 @@ class Limiter:
           resolved_limit = auth_limit
       except Exception:
         ident = None
-
     if ident is None:
-      ip = get_origin_ip(request)
-      if self.is_exempt(ip):
-        return None
       ident = hashlib.sha512(ip.encode()).hexdigest()
       resolved_limit = normal_limit
 
