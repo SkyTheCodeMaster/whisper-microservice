@@ -1,15 +1,17 @@
 from __future__ import annotations
 
 import asyncio
+import gc
 import random
 import string
 import time
 import tomllib
-import numpy
 from typing import TYPE_CHECKING
 
 import aiofiles
 import aiofiles.os
+import numpy
+import torch
 from faster_whisper import WhisperModel
 
 if TYPE_CHECKING:
@@ -22,13 +24,10 @@ MODEL_SIZE = config["model"]["model"]
 DEVICE = config["model"]["device"]
 DEVICE_INDEX = config["model"]["device_idx"]
 
-model = WhisperModel(
-  MODEL_SIZE,
-  device=DEVICE,
-  device_index=DEVICE_INDEX
-)
+model = WhisperModel(MODEL_SIZE, device=DEVICE, device_index=DEVICE_INDEX)
 
 model_lock = asyncio.Lock()
+
 
 class TranscriptionResult:
   segments: list[Segment]
@@ -47,48 +46,82 @@ class TranscriptionResult:
     return " ".join(segment.text.strip() for segment in self.segments)
 
 
-def _transcribe_file(file_path: str, use_vad: bool = False, vad_options: dict[str,float] = None) -> TranscriptionResult:
+def _transcribe_file(
+  file_path: str, use_vad: bool = False, vad_options: dict[str, float] = None
+) -> TranscriptionResult:
   "Take in PCM WAV 16 bit bytes, return transcribed text"
-  segments, info = model.transcribe(file_path, vad_filter=use_vad, vad_parameters=vad_options)
+  segments, info = model.transcribe(
+    file_path, vad_filter=use_vad, vad_parameters=vad_options
+  )
 
   segments = list(segments)
   result = TranscriptionResult(segments, info)
   return result
 
 
-async def transcribe_file(audio_bytes: bytes, *, use_vad: bool = False, vad_options: dict[str,float] = None) -> TranscriptionResult:
+async def transcribe_file(
+  audio_bytes: bytes,
+  *,
+  use_vad: bool = False,
+  vad_options: dict[str, float] = None,
+) -> TranscriptionResult:
   loop = asyncio.get_running_loop()
   start = time.time()
-  def t(): return round(time.time()-start, 4)
+
+  def t():
+    return round(time.time() - start, 4)
+
   print(f"[{t()}] Starting conversion...")
   file_path = await convert_to_wav(audio_bytes)
   print(f"[{t()}] Converted to wav, waiting for lock...")
   async with model_lock:
     print(f"[{t()}] Lock acquired, transcribing...")
-    result = await loop.run_in_executor(None, _transcribe_file, file_path, use_vad, vad_options)
+    result = await loop.run_in_executor(
+      None, _transcribe_file, file_path, use_vad, vad_options
+    )
   print(f"[{t()}] Finished transcription.")
   await aiofiles.os.remove(file_path)
   print(f"[{t()}] Deleted file..")
+  cleanup()
   return result
 
-def _transcribe_bytes(pcm_bytes: bytes, use_vad: bool = False, vad_options: dict[str,float] = None) -> TranscriptionResult:
-  audio_array = numpy.frombuffer(pcm_bytes, numpy.int16).astype(numpy.float32) / 32768.0
 
-  segments, info = model.transcribe(audio_array, vad_filter=use_vad, vad_parameters=vad_options)
+def _transcribe_bytes(
+  pcm_bytes: bytes, use_vad: bool = False, vad_options: dict[str, float] = None
+) -> TranscriptionResult:
+  audio_array = (
+    numpy.frombuffer(pcm_bytes, numpy.int16).astype(numpy.float32) / 32768.0
+  )
+
+  segments, info = model.transcribe(
+    audio_array, vad_filter=use_vad, vad_parameters=vad_options
+  )
 
   segments = list(segments)
   result = TranscriptionResult(segments, info)
   return result
 
-async def transcribe_bytes(pcm_bytes: bytes, *, use_vad: bool = False, vad_options: dict[str,float] = None) -> TranscriptionResult:
+
+async def transcribe_bytes(
+  pcm_bytes: bytes,
+  *,
+  use_vad: bool = False,
+  vad_options: dict[str, float] = None,
+) -> TranscriptionResult:
   loop = asyncio.get_running_loop()
   start = time.time()
-  def t(): return round(time.time()-start, 4)
+
+  def t():
+    return round(time.time() - start, 4)
+
   print(f"[{t()}] Waiting for lock...")
   async with model_lock:
     print(f"[{t()}] Lock acquired, transcribing...")
-    result = await loop.run_in_executor(None, _transcribe_bytes, pcm_bytes, use_vad, vad_options)
+    result = await loop.run_in_executor(
+      None, _transcribe_bytes, pcm_bytes, use_vad, vad_options
+    )
   print(f"[{t()}] Finished transcription.")
+  cleanup()
   return result
 
 
@@ -114,3 +147,9 @@ async def convert_to_wav(data: bytes) -> str:
   await aiofiles.os.remove(f"/tmp/audioconversion/{job_id}.src")
 
   return f"/tmp/audioconversion/{job_id}.wav"
+
+
+def cleanup():
+  torch.cuda.empty_cache()
+  torch.cuda.ipc_collect()
+  gc.collect()

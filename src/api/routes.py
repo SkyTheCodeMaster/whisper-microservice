@@ -6,13 +6,11 @@ from typing import TYPE_CHECKING
 from aiohttp import web
 from aiohttp.web import Response
 
-from utils.authenticate import Approval, Key, authenticate, get_project_status
 from utils.cors import add_cors_routes
 from utils.limiter import Limiter
 from utils.whisper import transcribe_file, transcribe_bytes
 
 if TYPE_CHECKING:
-  from utils.authenticate import User
   from utils.extra_request import Request
 
 with open("config.toml") as f:
@@ -21,7 +19,7 @@ with open("config.toml") as f:
   exempt_ips = config["srv"]["ratelimit_exempt"]
   api_version = config["srv"]["api_version"]
 
-limiter = Limiter(exempt_ips=exempt_ips)
+limiter = Limiter(exempt_ips=exempt_ips, use_auth=False)
 routes = web.RouteTableDef()
 
 
@@ -45,24 +43,6 @@ async def get_lp_get(request: Request) -> Response:
 @routes.post("/whisper/transcribe/file/")
 @limiter.limit("6/m")
 async def post_whisper_transcribe_file(request: Request) -> Response:
-  auth = await authenticate(request, cs=request.session)
-
-  if isinstance(auth, Response):
-    return auth
-  else:
-    if isinstance(auth, Key):
-      # this means its a Key
-      user: User = auth.user
-    else:
-      user: User = auth
-
-    status = await get_project_status(user, "Whisper", cs=request.session)
-    if status != Approval.APPROVED:
-      return Response(
-        status=401,
-        text="please apply for project at https://auth.skystuff.cc/projects#Whisper",
-      )
-
   data = await request.read()
 
   query = request.query
@@ -81,10 +61,10 @@ async def post_whisper_transcribe_file(request: Request) -> Response:
       "min_speech_duration_ms": min_speech_ms,
       "max_speech_duration_s": max_speech_s,
       "min_silence_duration_ms": min_silence_ms,
-      "speech_pad_ms": speech_pad
+      "speech_pad_ms": speech_pad,
     }
   except ValueError:
-    return Response(status=400,text="failed converting vad options")
+    return Response(status=400, text="failed converting vad options")
 
   try:
     result = await transcribe_file(data, use_vad=vad, vad_options=vad_options)
@@ -96,55 +76,42 @@ async def post_whisper_transcribe_file(request: Request) -> Response:
         words = []
         try:
           for word in segment.words:
-            words.append({
-              "start": word.start,
-              "end": word.end,
-              "word": word.word,
-              "probability": word.probability
-            })
+            words.append(
+              {
+                "start": word.start,
+                "end": word.end,
+                "word": word.word,
+                "probability": word.probability,
+              }
+            )
         except Exception:
           pass
-        
-        segments.append({
-          "start": segment.start,
-          "end": segment.end,
-          "text": segment.text.strip(),
-          "words": words,
-        })
+
+        segments.append(
+          {
+            "start": segment.start,
+            "end": segment.end,
+            "text": segment.text.strip(),
+            "words": words,
+          }
+        )
 
       packet = {
         "full_text": result.full_text,
         "language": result.language,
         "language_probability": result.language_prob,
         "segments": segments,
-        "duration": result.info.duration
+        "duration": result.info.duration,
       }
       return web.json_response(packet)
   except Exception:
     request.LOG.exception("Failed transcription!")
     return Response(status=500)
 
+
 @routes.post("/whisper/transcribe/raw/")
 @limiter.limit("6/m")
 async def post_whisper_transcribe_raw(request: Request) -> Response:
-  auth = await authenticate(request, cs=request.session)
-
-  if isinstance(auth, Response):
-    return auth
-  else:
-    if isinstance(auth, Key):
-      # this means its a Key
-      user: User = auth.user
-    else:
-      user: User = auth
-
-    status = await get_project_status(user, "Whisper", cs=request.session)
-    if status != Approval.APPROVED:
-      return Response(
-        status=401,
-        text="please apply for project at https://auth.skystuff.cc/projects#Whisper",
-      )
-
   data = await request.read()
 
   query = request.query
@@ -163,10 +130,10 @@ async def post_whisper_transcribe_raw(request: Request) -> Response:
       "min_speech_duration_ms": min_speech_ms,
       "max_speech_duration_s": max_speech_s,
       "min_silence_duration_ms": min_silence_ms,
-      "speech_pad_ms": speech_pad
+      "speech_pad_ms": speech_pad,
     }
   except ValueError:
-    return Response(status=400,text="failed converting vad options")
+    return Response(status=400, text="failed converting vad options")
 
   try:
     result = await transcribe_bytes(data, use_vad=vad, vad_options=vad_options)
@@ -178,33 +145,38 @@ async def post_whisper_transcribe_raw(request: Request) -> Response:
         words = []
         try:
           for word in segment.words:
-            words.append({
-              "start": word.start,
-              "end": word.end,
-              "word": word.word,
-              "probability": word.probability
-            })
+            words.append(
+              {
+                "start": word.start,
+                "end": word.end,
+                "word": word.word,
+                "probability": word.probability,
+              }
+            )
         except Exception:
           pass
-        
-        segments.append({
-          "start": segment.start,
-          "end": segment.end,
-          "text": segment.text.strip(),
-          "words": words,
-        })
+
+        segments.append(
+          {
+            "start": segment.start,
+            "end": segment.end,
+            "text": segment.text.strip(),
+            "words": words,
+          }
+        )
 
       packet = {
         "full_text": result.full_text,
         "language": result.language,
         "language_probability": result.language_prob,
         "segments": segments,
-        "duration": result.info.duration
+        "duration": result.info.duration,
       }
       return web.json_response(packet)
   except Exception:
     request.LOG.exception("Failed transcription!")
     return Response(status=500)
+
 
 async def setup(app: web.Application) -> None:
   for route in routes:
